@@ -1,0 +1,12 @@
+src/dev
+index.html
+vite.config.ts
+tsconfig.json
+tsconfig.node.json
+.eslintrc.cjs
+.gitignore
+*.log
+.DS_Store
+.vite
+coverage
+node_modules
