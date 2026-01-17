@@ -12,12 +12,13 @@ A professional, customizable React chat widget component for embedding AI chat i
 - 🔄 **Dual Modes** - Floating button or embedded chat
 - 🌍 **i18n Support** - Built-in support for 5 languages (EN, ES, FR, DE, PT)
 - 📝 **Markdown Rendering** - Full markdown support for rich messages
-- 💾 **Chat History** - Automatic persistence via localStorage
+- 💾 **Chat History** - Automatic persistence via localStorage with unique keys per instance
 - 🔌 **Plugin System** - Extensible architecture for custom functionality
 - 🎭 **Fully Customizable** - Theme colors, avatars, messages, and more
 - 📱 **Responsive** - Works perfectly on mobile and desktop
 - ⚡ **TypeScript** - Fully typed for excellent DX
 - 🎯 **Demo Mode** - Test without backend integration
+- 🛡️ **CSS Isolation** - Styles are scoped to prevent conflicts with host applications
 
 ## Installation
 
@@ -109,7 +110,7 @@ The chat is always visible and fills its container.
 | `customHeaders` | `Record<string, string>` | - | Additional API headers |
 | `enableMarkdown` | `boolean` | `true` | Enable markdown rendering |
 | `enableHistory` | `boolean` | `true` | Persist chat history |
-| `historyKey` | `string` | `'miia-chat-history'` | localStorage key for history |
+| `historyKey` | `string` | `auto-generated` | localStorage key for history. If not provided, a unique key is automatically generated per widget instance |
 | `demoMode` | `boolean` | `false` | Use simulated responses |
 | `onMessageSent` | `(message: string) => void` | - | Callback when user sends message |
 | `onMessageReceived` | `(response: ChatMessage) => void` | - | Callback when bot responds |
@@ -270,7 +271,19 @@ Demo mode automatically activates if no `apiEndpoint` is provided.
 
 ## Chat History
 
-History is automatically saved to `localStorage` and restored on page reload:
+History is automatically saved to `localStorage` and restored on page reload. Each widget instance automatically gets a unique storage key to prevent conflicts:
+
+```tsx
+<ChatWidget
+  enableHistory={true}
+  // historyKey is auto-generated if not provided
+  // Format: "miia-chat-history-{endpoint-hash}-{instance-id}"
+/>
+```
+
+### Custom History Key
+
+If you want to share history between instances or use a custom key:
 
 ```tsx
 <ChatWidget
@@ -279,13 +292,15 @@ History is automatically saved to `localStorage` and restored on page reload:
 />
 ```
 
-Clear history programmatically or disable it:
+### Disable History
 
 ```tsx
 <ChatWidget
-  enableHistory={false}  // Disable history
+  enableHistory={false}  // Disable history persistence
 />
 ```
+
+**Note**: When `historyKey` is not provided, each widget instance automatically generates a unique key based on the `apiEndpoint` (if available) and a unique instance ID. This ensures that multiple widgets on the same page or different sites don't share chat history.
 
 ## Markdown Support
 
@@ -431,6 +446,17 @@ npm run lint
 - Edge (latest)
 - Mobile browsers (iOS Safari, Chrome Android)
 
+## CSS Isolation & Style Safety
+
+The widget uses **scoped CSS** to ensure it doesn't conflict with your application's styles:
+
+- ✅ Tailwind CSS reset/base styles are scoped to `.miia-chat-widget` container
+- ✅ Safe to use even if your app uses Tailwind CSS
+- ✅ No style conflicts with host application
+- ✅ All widget styles are self-contained
+
+The widget automatically wraps itself in a `.miia-chat-widget` container, ensuring complete style isolation.
+
 ## Troubleshooting
 
 ### Widget not appearing
@@ -449,7 +475,9 @@ npm install -D @types/react @types/react-dom
 
 ### Styles not applying
 
-Check that Tailwind CSS classes are not being purged by your build system. The widget includes all necessary styles in its CSS bundle.
+The widget includes all necessary styles in its CSS bundle. Styles are automatically scoped to the `.miia-chat-widget` container to prevent conflicts with your application's styles.
+
+**CSS Isolation**: The widget uses scoped Tailwind CSS preflight, meaning its reset/base styles only apply within the widget container and won't affect your host application. This ensures safe integration even if your app uses Tailwind CSS.
 
 ### API not connecting
 
@@ -461,8 +489,9 @@ Check that Tailwind CSS classes are not being purged by your build system. The w
 ### History not persisting
 
 - Check if localStorage is available in your browser
-- Verify the `historyKey` is unique if you have multiple widgets
-- Check browser privacy settings
+- Each widget instance automatically gets a unique `historyKey` if not explicitly provided
+- If you have multiple widgets and want them to share history, provide the same `historyKey` explicitly
+- Check browser privacy settings (some browsers block localStorage in private mode)
 
 ## Contributing
 
