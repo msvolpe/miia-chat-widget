@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-01-17
+
 ### Added
 - **Session Management**: Added automatic session ID management. Each user now gets a unique `sessionId` that persists in localStorage and is sent with every API request, allowing servers to maintain conversation context.
 - **Custom Session ID**: Added `sessionId` prop to allow developers to provide custom session identifiers, useful for integrating with existing authentication systems.
@@ -67,5 +69,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive prop types
 - Plugin examples
 
+[1.2.0]: https://github.com/yourname/miia-chat-widget/releases/tag/v1.2.0
 [1.1.0]: https://github.com/yourname/miia-chat-widget/releases/tag/v1.1.0
 [1.0.0]: https://github.com/yourname/miia-chat-widget/releases/tag/v1.0.0
