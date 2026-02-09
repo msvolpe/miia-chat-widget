@@ -24,6 +24,8 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
   enableMarkdown = true,
   enableHistory = true,
   historyKey,
+  sessionId,
+  timeout,
   demoMode = false,
   onMessageSent,
   onMessageReceived,
@@ -72,6 +74,8 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     demoMode: demoMode || !apiEndpoint,
     enableHistory,
     historyKey: uniqueHistoryKey,
+    sessionId,
+    timeout,
   });
 
   // Initialize i18n

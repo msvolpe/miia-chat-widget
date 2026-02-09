@@ -14,4 +14,4 @@ export type {
 export { PluginManager } from './lib/plugin-manager';
 
 // Utility exports for advanced users
-export { generateId, formatTimestamp, cn } from './lib/utils';
+export { generateId, formatTimestamp, cn, getOrCreateSessionId } from './lib/utils';

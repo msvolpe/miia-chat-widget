@@ -5,34 +5,133 @@ export interface SendMessageOptions {
   apiEndpoint: string;
   apiKey?: string;
   customHeaders?: Record<string, string>;
+  sessionId?: string;
+  timeout?: number; // Timeout in milliseconds (default: 60000 = 60 seconds)
 }
 
 export const sendChatMessage = async (
   message: string,
   options: SendMessageOptions
 ): Promise<ChatMessage> => {
-  const response = await fetch(options.apiEndpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.apiKey && { 'Authorization': `Bearer ${options.apiKey}` }),
-      ...options.customHeaders,
+  // Build headers object
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.apiKey && { 'Authorization': `Bearer ${options.apiKey}` }),
+    ...options.customHeaders,
+  };
+
+  // Try multiple CORS strategies
+  const strategies = [
+    // Strategy 1: Standard CORS with credentials omitted
+    {
+      mode: 'cors' as RequestMode,
+      credentials: 'omit' as RequestCredentials,
+      headers,
     },
-    body: JSON.stringify({ message }),
-  });
-  
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status} ${response.statusText}`);
+    // Strategy 2: CORS without custom headers (if they cause issues)
+    {
+      mode: 'cors' as RequestMode,
+      credentials: 'omit' as RequestCredentials,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.apiKey && { 'Authorization': `Bearer ${options.apiKey}` }),
+      },
+    },
+  ];
+
+  let lastError: Error | null = null;
+
+  // Build request body with message and sessionId
+  const requestBody: { message: string; sessionId?: string } = { message };
+  if (options.sessionId) {
+    requestBody.sessionId = options.sessionId;
   }
-  
-  const data = await response.json();
-  
+
+  // Set timeout (default: 60 seconds for LLM processing)
+  const timeout = options.timeout ?? 60000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    for (const strategy of strategies) {
+      try {
+        const response = await fetch(options.apiEndpoint, {
+          method: 'POST',
+          mode: strategy.mode,
+          credentials: strategy.credentials,
+          headers: strategy.headers,
+          body: JSON.stringify(requestBody),
+          signal: controller.signal,
+        });
+        
+        // Clear timeout on successful response
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          // If it's a CORS error, try next strategy
+          if (response.status === 0 || response.type === 'opaque') {
+            lastError = new Error('CORS error');
+            continue;
+          }
+          // For other HTTP errors, try to parse response
+          try {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `API error: ${response.status}`);
+          } catch {
+            throw new Error(`API error: ${response.status} ${response.statusText}`);
+          }
+        }
+        
+        const data = await response.json();
+        
+        return {
+          id: generateId(),
+          role: 'assistant',
+          content: data.message || data.response || data.content || data.text || 'No response from API',
+          timestamp: Date.now(),
+          metadata: data,
+        };
+      } catch (error) {
+        // Handle timeout/abort errors
+        if (error instanceof Error && error.name === 'AbortError') {
+          clearTimeout(timeoutId);
+          lastError = new Error(`Request timeout after ${timeout}ms. The server took too long to respond.`);
+          // Don't try next strategy on timeout
+          break;
+        }
+        
+        // If it's a network/CORS error, try next strategy (timeout continues)
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          lastError = error as Error;
+          continue;
+        }
+        // If it's a CORS-related error, try next strategy (timeout continues)
+        if (error instanceof Error && (
+          error.message.includes('CORS') || 
+          error.message.includes('cross-origin') ||
+          error.message.includes('network')
+        )) {
+          lastError = error;
+          continue;
+        }
+        // For other errors, clear timeout and throw immediately
+        clearTimeout(timeoutId);
+        throw error;
+      }
+    }
+  } finally {
+    // Ensure timeout is always cleared
+    clearTimeout(timeoutId);
+  }
+
+  // If all strategies failed, return a fallback response instead of throwing
+  // This prevents error display while still allowing the UI to function
   return {
     id: generateId(),
     role: 'assistant',
-    content: data.message || data.response || data.content || data.text || 'No response from API',
+    content: 'Unable to connect to the server. Please check your connection and try again.',
     timestamp: Date.now(),
-    metadata: data,
+    metadata: { error: true, originalError: lastError?.message },
   };
 };
 

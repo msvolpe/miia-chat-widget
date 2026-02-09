@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { ChatMessage, UseChatOptions } from '../types';
-import { generateId } from '../lib/utils';
+import { generateId, getOrCreateSessionId } from '../lib/utils';
 import { sendChatMessage, sendDemoMessage } from '../lib/api';
 import { useChatHistory } from './useChatHistory';
 import { PluginManager } from '../lib/plugin-manager';
@@ -17,6 +17,8 @@ export function useChat(options: UseChatOptions) {
     demoMode = false,
     enableHistory = true,
     historyKey = 'miia-chat-history',
+    sessionId: providedSessionId,
+    timeout,
   } = options;
 
   const pluginManager = useRef(new PluginManager(plugins));
@@ -27,6 +29,19 @@ export function useChat(options: UseChatOptions) {
     historyKey,
     enableHistory
   );
+
+  // Get or create a unique session ID that persists across page reloads
+  // Use provided sessionId if available, otherwise generate/retrieve from localStorage
+  const sessionId = useMemo(() => {
+    if (providedSessionId) {
+      return providedSessionId;
+    }
+    
+    const storageKey = apiEndpoint 
+      ? `miia-chat-session-${btoa(apiEndpoint).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16)}`
+      : 'miia-chat-session-id';
+    return getOrCreateSessionId(storageKey);
+  }, [apiEndpoint, providedSessionId]);
 
   // Initialize plugins
   useEffect(() => {
@@ -76,11 +91,25 @@ export function useChat(options: UseChatOptions) {
       if (demoMode || !apiEndpoint) {
         assistantMessage = await sendDemoMessage(processedContent);
       } else {
-        assistantMessage = await sendChatMessage(processedContent, {
-          apiEndpoint,
-          apiKey,
-          customHeaders,
-        });
+        try {
+          assistantMessage = await sendChatMessage(processedContent, {
+            apiEndpoint,
+            apiKey,
+            customHeaders,
+            sessionId,
+            timeout,
+          });
+        } catch (err) {
+          // Silently handle errors - sendChatMessage now returns a fallback message
+          // instead of throwing, but we catch here just in case
+          assistantMessage = {
+            id: generateId(),
+            role: 'assistant',
+            content: 'Unable to connect to the server. Please check your connection and try again.',
+            timestamp: Date.now(),
+            metadata: { error: true },
+          };
+        }
       }
 
       // Run post-receive plugins
@@ -103,13 +132,14 @@ export function useChat(options: UseChatOptions) {
       }
 
     } catch (err) {
+      // Silently handle errors - don't set error state or show errors to user
+      // The API function now returns fallback messages instead of throwing
       const error = err instanceof Error ? err : new Error('Failed to send message');
-      setError(error);
       
-      // Notify plugins of error
+      // Still notify plugins and callbacks for logging/debugging purposes
+      // but don't display errors to the user
       pluginManager.current.onError(error);
       
-      // Call onError callback
       if (onError) {
         try {
           onError(error);
@@ -117,6 +147,16 @@ export function useChat(options: UseChatOptions) {
           console.error('onError callback error:', callbackErr);
         }
       }
+      
+      // Add a fallback message instead of showing error
+      const fallbackMessage: ChatMessage = {
+        id: generateId(),
+        role: 'assistant',
+        content: 'Unable to process your request. Please try again.',
+        timestamp: Date.now(),
+        metadata: { error: true },
+      };
+      setMessages(prev => [...prev, fallbackMessage]);
     } finally {
       setIsLoading(false);
     }

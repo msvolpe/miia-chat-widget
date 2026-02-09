@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Session Management**: Added automatic session ID management. Each user now gets a unique `sessionId` that persists in localStorage and is sent with every API request, allowing servers to maintain conversation context.
+- **Custom Session ID**: Added `sessionId` prop to allow developers to provide custom session identifiers, useful for integrating with existing authentication systems.
+- **Configurable Request Timeout**: Added `timeout` prop to configure request timeout duration. Default is 60 seconds (60000ms), suitable for LLM processing. Can be increased for slower APIs.
+- Added `getOrCreateSessionId()` utility function for session ID management (exported in utils).
+
+### Changed
+- **API Request Format**: The request body now includes both `message` and `sessionId` fields. This is a backward-compatible change - existing servers that ignore `sessionId` will continue to work.
+- **Request Timeout**: Implemented proper timeout handling using AbortController. Requests now timeout after the configured duration (default: 60 seconds) instead of relying on browser defaults.
+
 ## [1.1.0] - 2026-01-16
 
 ### Fixed
