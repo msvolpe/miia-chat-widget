@@ -50,6 +50,8 @@ export interface ChatWidgetProps {
   enableMarkdown?: boolean;
   enableHistory?: boolean;
   historyKey?: string;
+  sessionId?: string;
+  timeout?: number;
   demoMode?: boolean;
   
   // Callbacks
@@ -75,6 +77,8 @@ export interface UseChatOptions {
   demoMode?: boolean;
   enableHistory?: boolean;
   historyKey?: string;
+  sessionId?: string;
+  timeout?: number;
 }
 
 export interface ChatState {

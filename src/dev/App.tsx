@@ -26,6 +26,8 @@ const analyticsPlugin: ChatPlugin = {
 function App() {
   const [mode, setMode] = useState<'floating' | 'embedded'>('floating');
   const [locale, setLocale] = useState<string>('en');
+  const [customSessionId, setCustomSessionId] = useState<string>('');
+  const [showSessionId, setShowSessionId] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -75,6 +77,51 @@ function App() {
               </select>
             </div>
           </div>
+
+          <div className="mt-4">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={showSessionId}
+                onChange={(e) => setShowSessionId(e.target.checked)}
+                className="mr-2"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Use Custom Session ID (for testing)
+              </span>
+            </label>
+            
+            {showSessionId && (
+              <div className="mt-2">
+                <input
+                  type="text"
+                  value={customSessionId}
+                  onChange={(e) => setCustomSessionId(e.target.value)}
+                  placeholder="Enter custom session ID (e.g., user-123)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black text-sm"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  💡 Leave empty to use auto-generated session ID from localStorage
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Session Info */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-8">
+          <h3 className="font-semibold text-green-900 mb-2">
+            🔐 Session Management
+          </h3>
+          <p className="text-sm text-green-800 mb-2">
+            Each conversation has a unique <code className="bg-green-100 px-1 rounded">sessionId</code> that persists across page reloads.
+            This allows the server to maintain conversation history.
+          </p>
+          <p className="text-xs text-green-700">
+            {showSessionId && customSessionId 
+              ? `Using custom session ID: ${customSessionId}` 
+              : 'Using auto-generated session ID (check localStorage: miia-chat-session-*)'}
+          </p>
         </div>
 
         {/* Info Cards */}
@@ -132,6 +179,7 @@ By the way, you can create an agent like me for your website! 😉"
                   accentColor: '#3b82f6',
                 }}
                 plugins={[profanityFilterPlugin, analyticsPlugin]}
+                sessionId={showSessionId && customSessionId ? customSessionId : undefined}
                 onMessageSent={(msg) => console.log('Sent:', msg)}
                 onMessageReceived={(msg) => console.log('Received:', msg)}
               />
@@ -168,7 +216,8 @@ By the way, you can create an agent like me for your website! 😉"
             'What are AI actions?',
           ]}
           botName="Miia AI Agent"
-          demoMode={true}
+          demoMode={false}
+          apiEndpoint="https://n8n.srv1256421.hstgr.cloud/webhook/messages"
           enableMarkdown={true}
           enableHistory={true}
           locale={locale}
@@ -177,6 +226,7 @@ By the way, you can create an agent like me for your website! 😉"
             accentColor: '#3b82f6',
           }}
           plugins={[profanityFilterPlugin, analyticsPlugin]}
+          sessionId={showSessionId && customSessionId ? customSessionId : undefined}
           onMessageSent={(msg) => console.log('Sent:', msg)}
           onMessageReceived={(msg) => console.log('Received:', msg)}
           onOpen={() => console.log('Chat opened')}

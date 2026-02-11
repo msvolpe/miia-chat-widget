@@ -38,3 +38,39 @@ export function formatTimestamp(timestamp: number): string {
     hour12: true 
   });
 }
+
+/**
+ * Gets or creates a unique session ID that persists in localStorage.
+ * The session ID is used to maintain conversation history on the server.
+ * 
+ * @param storageKey - Optional custom key for localStorage. Defaults to 'miia-chat-session-id'
+ * @returns A unique session ID string
+ */
+export function getOrCreateSessionId(storageKey: string = 'miia-chat-session-id'): string {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined' || !window.localStorage) {
+    // Fallback for SSR or non-browser environments
+    return generateId();
+  }
+
+  try {
+    // Try to get existing session ID from localStorage
+    const existingSessionId = localStorage.getItem(storageKey);
+    
+    if (existingSessionId) {
+      return existingSessionId;
+    }
+    
+    // Generate a new session ID
+    const newSessionId = generateId();
+    
+    // Store it in localStorage
+    localStorage.setItem(storageKey, newSessionId);
+    
+    return newSessionId;
+  } catch (error) {
+    // If localStorage is not available (e.g., private browsing), generate a new ID
+    console.warn('Failed to access localStorage, generating new session ID:', error);
+    return generateId();
+  }
+}

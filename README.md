@@ -111,6 +111,8 @@ The chat is always visible and fills its container.
 | `enableMarkdown` | `boolean` | `true` | Enable markdown rendering |
 | `enableHistory` | `boolean` | `true` | Persist chat history |
 | `historyKey` | `string` | `auto-generated` | localStorage key for history. If not provided, a unique key is automatically generated per widget instance |
+| `sessionId` | `string` | `auto-generated` | Unique session identifier sent to the server. If not provided, a unique ID is automatically generated and persisted in localStorage |
+| `timeout` | `number` | `60000` | Request timeout in milliseconds. Default is 60 seconds (60000ms), suitable for LLM processing. Increase for slower APIs |
 | `demoMode` | `boolean` | `false` | Use simulated responses |
 | `onMessageSent` | `(message: string) => void` | - | Callback when user sends message |
 | `onMessageReceived` | `(response: ChatMessage) => void` | - | Callback when bot responds |
@@ -228,9 +230,12 @@ Your API endpoint should accept POST requests with this format:
 **Request:**
 ```json
 {
-  "message": "User's message text"
+  "message": "User's message text",
+  "sessionId": "unique-session-identifier"
 }
 ```
+
+> **Note:** The `sessionId` is automatically generated and persisted in localStorage. It allows your server to maintain conversation history for each user. You can also provide a custom `sessionId` via the widget props.
 
 **Response:**
 ```json
@@ -244,10 +249,16 @@ Your API endpoint should accept POST requests with this format:
 
 ```javascript
 app.post('/chat', async (req, res) => {
-  const { message } = req.body;
+  const { message, sessionId } = req.body;
+  
+  // Use sessionId to retrieve/store conversation history
+  const conversationHistory = await getHistory(sessionId);
   
   // Process with your AI/backend
-  const response = await processMessage(message);
+  const response = await processMessage(message, conversationHistory);
+  
+  // Save the conversation
+  await saveHistory(sessionId, { message, response });
   
   res.json({
     message: response,
@@ -301,6 +312,87 @@ If you want to share history between instances or use a custom key:
 ```
 
 **Note**: When `historyKey` is not provided, each widget instance automatically generates a unique key based on the `apiEndpoint` (if available) and a unique instance ID. This ensures that multiple widgets on the same page or different sites don't share chat history.
+
+## Session Management
+
+The widget automatically manages a unique session identifier (`sessionId`) that is sent with each API request. This allows your server to maintain conversation context across messages.
+
+### Automatic Session ID
+
+By default, a unique `sessionId` is automatically generated and persisted in `localStorage`:
+
+```tsx
+<ChatWidget
+  apiEndpoint="https://api.example.com/chat"
+  // sessionId is auto-generated and persisted
+  // Format: "1234567890-abc123def"
+/>
+```
+
+The `sessionId` persists across page reloads, allowing the server to maintain conversation history for returning users.
+
+### Custom Session ID
+
+You can provide a custom `sessionId` to integrate with your own user authentication or session management:
+
+```tsx
+function App() {
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    // Get user ID from your auth system
+    const user = getCurrentUser();
+    setUserId(user?.id);
+  }, []);
+
+  return (
+    <ChatWidget
+      apiEndpoint="https://api.example.com/chat"
+      sessionId={userId}  // Use your own session identifier
+    />
+  );
+}
+```
+
+This is useful when:
+- You want to link chat sessions to authenticated users
+- You need to sync sessions across multiple devices
+- You have your own session management system
+
+**Note**: If you provide a custom `sessionId`, it will override the automatic one, and the widget will not persist it in `localStorage`.
+
+## Request Timeout
+
+By default, the widget waits up to 60 seconds (60000ms) for the server to respond. This is suitable for most LLM APIs that may take time to process requests.
+
+### Custom Timeout
+
+You can configure a custom timeout for slower APIs or longer processing times:
+
+```tsx
+<ChatWidget
+  apiEndpoint="https://api.example.com/chat"
+  timeout={120000}  // 2 minutes (120 seconds)
+/>
+```
+
+### Timeout Examples
+
+```tsx
+// Default: 60 seconds (suitable for most LLMs)
+<ChatWidget apiEndpoint="..." />
+
+// Fast API: 30 seconds
+<ChatWidget apiEndpoint="..." timeout={30000} />
+
+// Slow LLM: 2 minutes
+<ChatWidget apiEndpoint="..." timeout={120000} />
+
+// Very slow processing: 5 minutes
+<ChatWidget apiEndpoint="..." timeout={300000} />
+```
+
+If the timeout is exceeded, the widget will display an error message: "Request timeout after Xms. The server took too long to respond."
 
 ## Markdown Support
 
